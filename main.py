@@ -18,19 +18,20 @@ from functions.write_file import schema_write_file, write_file
 
 def main():
 	system_prompt = """
-	You are a helpful AI coding agent.
+	You are a helpful AI coding agent with access to file system tools.
 
-	When a user asks a question or makes a request, make a function call plan. You can perform the following operations:
+	You MUST use the available functions to complete tasks. When a user asks a question:
 
-	- List files and directories
-	
-	- Read file contents
+	1. Use get_files_info() to list files and directories
+	2. Use get_file_content() to read file contents  
+	3. Use run_python_file() to execute Python files
+	4. Use write_file() to create or modify files
 
-	- Execute Python files with optional arguments
+	Do NOT ask the user for file paths or information you can get yourself using these functions.
 
-	- Write pr overwrite files
+	All paths should be relative to the working directory. The working directory is automatically injected for security.
 
-	All paths you provide should be relative to the working directory. You do not need to specify the working directory in your function calls as it is automatically injected for security reasons.
+	Always start by using get_files_info() to see what files are available, then use other functions as needed.
 	"""
 	available_functions= types.Tool(
 		function_declarations=[
@@ -52,7 +53,10 @@ def main():
 		contents=messages,
 		config=types.GenerateContentConfig(tools=[available_functions], system_instruction=system_prompt),
 	)
+
 	
+
+
 	function_call_list = {
 		"get_files_info": get_files_info,
 		"get_file_content": get_file_content,
@@ -60,21 +64,50 @@ def main():
 		"write_file": write_file,
 	}
 	
-	if response.function_calls:
-		for function_call_part in response.function_calls:
-			function_name = function_call_part.name
-			function_args = function_call_part.args
-			if function_name in function_call_list:
-				print(f"Function name: {function_name}")
-				print(f"Function args: {function_args}")
-				
-				function_args['working_directory'] = os.getcwd()
-				result = function_call_list[function_name](**function_args)
-				print(result)
+	for i in range(20):
+		try:
+			response = client.models.generate_content(
+				model = "gemini-2.0-flash-001" ,
+				contents=messages,
+				config=types.GenerateContentConfig(tools=[available_functions], system_instruction=system_prompt),
+			)
+			for candidate in response.candidates:
+				messages.append(candidate.content)
+
+			# Look for function calls in the parts
+			function_calls_found = False
+			for candidate in response.candidates:
+				for part in candidate.content.parts:
+					if hasattr(part, 'function_call') and part.function_call:
+						function_calls_found = True
+						function_name = part.function_call.name
+						function_args = dict(part.function_call.args)  # Convert to dict
+            
+						if function_name in function_call_list:
+							print(f"Function name: {function_name}")
+							print(f"Function args: {function_args}")
+                
+							function_args['working_directory'] = os.getcwd()
+							result = function_call_list[function_name](**function_args)
+							messages.append(types.Content(role="user", parts=[types.Part(text=str(result))]))
+						
+							print(result)
+						else:
+							print(f"Unknown function: {function_name}")
+			if not function_calls_found:
+				# No function calls, this is the final response
+				print("Final response:")
+				print(response.text)
+				break
+					
+			
 
 
-	else:
-		print(response.text)
+
+		except Exception as e:
+			print(f"Error: {e}")
+			break
+					
 
 	if "--verbose" in sys.argv:
 
