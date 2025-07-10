@@ -14,6 +14,7 @@ from functions.get_files_info import schema_get_files_info, get_files_info
 from functions.get_file_content import schema_get_file_content, get_file_content
 from functions.run_python import schema_run_python, run_python_file
 from functions.write_file import schema_write_file, write_file
+from functions.call_function import call_function
 
 
 def main():
@@ -23,7 +24,7 @@ def main():
 	You MUST use the available functions to complete tasks. When a user asks a question:
 
 	1. Use get_files_info() to list files and directories
-	2. Use get_file_content() to read file contents  
+	2. Use get_file_content() to read file contents
 	3. Use run_python_file() to execute Python files
 	4. Use write_file() to create or modify files
 
@@ -32,6 +33,10 @@ def main():
 	All paths should be relative to the working directory. The working directory is automatically injected for security.
 
 	Always start by using get_files_info() to see what files are available, then use other functions as needed.
+
+	When analyzing images of asteroids, remember that asteroids are generally irregular shapes.
+	They are not typically triangles or other simple geometric shapes.
+	Focus on identifying overall shape characteristics and surface features.
 	"""
 	available_functions= types.Tool(
 		function_declarations=[
@@ -54,7 +59,7 @@ def main():
 		config=types.GenerateContentConfig(tools=[available_functions], system_instruction=system_prompt),
 	)
 
-	
+	verbose = "--verbose" in sys.argv
 
 
 	function_call_list = {
@@ -63,7 +68,7 @@ def main():
 		"run_python_file": run_python_file,
 		"write_file": write_file,
 	}
-	
+
 	for i in range(20):
 		try:
 			response = client.models.generate_content(
@@ -80,34 +85,30 @@ def main():
 				for part in candidate.content.parts:
 					if hasattr(part, 'function_call') and part.function_call:
 						function_calls_found = True
-						function_name = part.function_call.name
-						function_args = dict(part.function_call.args)  # Convert to dict
-            
-						if function_name in function_call_list:
-							print(f"Function name: {function_name}")
-							print(f"Function args: {function_args}")
-                
-							function_args['working_directory'] = os.getcwd()
-							result = function_call_list[function_name](**function_args)
-							messages.append(types.Content(role="user", parts=[types.Part(text=str(result))]))
 						
-							print(result)
-						else:
-							print(f"Unknown function: {function_name}")
+						
+
+						function_response = call_function(part.function_call, verbose=verbose)
+						if (
+							not function_response.parts
+							or not hasattr(function_response.parts[0], "function_response")
+							or not getattr(function_response.parts[0].function_response, "response", None)
+						):
+							raise Exception("No function_response.response found!")
+						messages.append(function_response)
 			if not function_calls_found:
 				# No function calls, this is the final response
 				print("Final response:")
 				print(response.text)
 				break
-					
-			
+
 
 
 
 		except Exception as e:
 			print(f"Error: {e}")
 			break
-					
+
 
 	if "--verbose" in sys.argv:
 
