@@ -1,6 +1,8 @@
 import os
 import subprocess
 from subprocess import TimeoutExpired
+from google.genai import types
+
 
 def run_python_file(working_directory, file_path):
 	try:
@@ -30,3 +32,19 @@ def run_python_file(working_directory, file_path):
 
 	except TimeoutExpired as e:
 		return f"Error: executing Python file: {e}"
+
+
+
+schema_run_python = types.FunctionDeclaration(
+	name="run_python_file",
+	description="Execute Python files with optional arguments, constrained to the working directory.",
+	parameters=types.Schema(
+		type=types.Type.OBJECT,
+		properties={
+			"file_path": types.Schema(
+			type=types.Type.STRING,
+				description="Execute the given Python file, relative to the working directory. If not provided, ask for the file to run.",
+			),
+		},
+	),
+)
