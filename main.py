@@ -12,7 +12,7 @@ client = genai.Client(api_key=api_key)
 from google.genai import types
 from functions.get_files_info import schema_get_files_info, get_files_info
 from functions.get_file_content import schema_get_file_content, get_file_content
-from functions.run_python import schema_run_python, run_python_file
+from functions.run_python import schema_run_python, run_python
 from functions.write_file import schema_write_file, write_file
 from functions.call_function import call_function
 
@@ -25,7 +25,7 @@ def main():
 
 	1. Use get_files_info() to list files and directories
 	2. Use get_file_content() to read file contents
-	3. Use run_python_file() to execute Python files
+	3. Use run_python() to execute Python files
 	4. Use write_file() to create or modify files
 
 	Do NOT ask the user for file paths or information you can get yourself using these functions.
@@ -62,13 +62,6 @@ def main():
 	verbose = "--verbose" in sys.argv
 
 
-	function_call_list = {
-		"get_files_info": get_files_info,
-		"get_file_content": get_file_content,
-		"run_python_file": run_python_file,
-		"write_file": write_file,
-	}
-
 	for i in range(20):
 		try:
 			response = client.models.generate_content(
@@ -95,6 +88,7 @@ def main():
 							or not getattr(function_response.parts[0].function_response, "response", None)
 						):
 							raise Exception("No function_response.response found!")
+						print(f"-> {function_response.parts[0].function_response.response}")
 						messages.append(function_response)
 			if not function_calls_found:
 				# No function calls, this is the final response

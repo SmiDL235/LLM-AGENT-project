@@ -4,7 +4,7 @@ from subprocess import TimeoutExpired
 from google.genai import types
 
 
-def run_python_file(working_directory, file_path):
+def run_python(working_directory, file_path):
 	try:
 		abs_working = os.path.abspath(working_directory)
 		abs_target = os.path.abspath(os.path.join(working_directory, file_path  or ""))
@@ -36,7 +36,7 @@ def run_python_file(working_directory, file_path):
 
 
 schema_run_python = types.FunctionDeclaration(
-	name="run_python_file",
+	name="run_python",
 	description="Execute Python files with optional arguments, constrained to the working directory.",
 	parameters=types.Schema(
 		type=types.Type.OBJECT,
